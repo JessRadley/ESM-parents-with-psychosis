@@ -159,6 +159,24 @@ dat<-cbind(dat, lpsychosis, lnegaff, lsoc_stress, lact_stress, leve_stress, lpar
 
 ```
 
+```{r code to investigate differences between parent first vs. parent second}
+#dat<-mutate(dat, timing = age_psychosis-childone_parentage)
+
+#timingfunction<-function(x){
+#if(x>0){
+#  1
+#}else{
+#  0
+#}
+#}
+#timingbinary<-sapply(dat$timing, timingfunction)
+#dat<-cbind(dat, timingbinary)
+
+#dat$timingbinary<-as.factor(dat$timingbinary)
+
+#res1<-lmer(psychosis ~ obs + lparent_eve_stress + timingbinary + (1|id), data = dat, REML = F)
+```
+
 
 ```{r missing data, echo = FALSE, fig.height = 3, fig.width = 5, warning = FALSE}
 
@@ -244,6 +262,8 @@ post["lparent_soc_stress"] <- "imp[[j]][, i] <- squeeze(imp[[j]][, i], c(0, 100)
 
 imp <- mice(dat, m=10, maxit = 40, method = meth, post = post, predictorMatrix = pred, printFlag = TRUE)
 
+dat_mice<-mice::complete(imp, 10)
+
 densityplot(imp, ~psychosis + negaff + soc_stress + eve_stress + act_stress + lpsychosis + lnegaff + lsoc_stress + leve_stress + lact_stress + parent_soc_stress + parent_eve_stress + parent_act_stress + lparent_soc_stress + lparent_eve_stress + lparent_act_stress)
 
 densityplot(imp, ~psychosis + negaff + soc_stress + eve_stress + act_stress + lpsychosis + lnegaff + lsoc_stress + leve_stress + lact_stress, layout = c(4, 3))
@@ -309,7 +329,6 @@ lrtest(intercept.ols,interceptonlymodel)
 # plot data with predicted lines
 gdat <- groupedData(psychosis ~ obs | id, data=dat)
 gdat <- na.omit(gdat[c("psychosis", "obs", "id")])
-plot(gdat, pch=19, cex=.5, lwd=2, subset = pred$.groups %in% sample(unique(gdat$id), 10))
  
 res <- lme(psychosis ~ obs, random = ~ 1 | id, data=gdat)
 pred <- augPred(res)
@@ -329,9 +348,11 @@ plot(jitter(fitted(res), amount=0.2), jitter(resid(res, type="p"), amount=0.3),
 
 ```{r second hypothesis - negative affect as mediator, echo = FALSE, fig.height = 3, fig.width = 5, warning = FALSE}
 ##parenting event stress missing data
+dat2<-dat%>%filter(!is.na(lparent_eve_stress)&!is.na(psychosis)&!is.na(lnegaff))
+
 detach("package:lmerTest", unload=TRUE) #lmerTest stops mediation package working - not sure why
-model_mediator <- lmer(lnegaff ~ lparent_eve_stress + age + gender + (1|id), data = dat_mice)
-model_outcome  <- lmer(psychosis ~ lparent_eve_stress + age + gender + lnegaff + (1|id), data = dat_mice)
+model_mediator <- lmer(lnegaff ~ lparent_eve_stress + age + gender + (1|id), data = dat2)
+model_outcome  <- lmer(psychosis ~ lparent_eve_stress + age + gender + lnegaff + (1|id), data = dat2)
 
 mediation_result <- mediate(
   model_mediator, 
@@ -344,10 +365,10 @@ mediation_result <- mediate(
 summary(mediation_result)
 plot(mediation_result)
 
-
+dat2<-dat%>%filter(!is.na(lparent_act_stress)&!is.na(psychosis)&!is.na(lnegaff))
 ###parenting activity stress missing data
-model_mediator <- lmer(lnegaff ~ lparent_act_stress + age + gender + (1|id), data = dat_mice)
-model_outcome  <- lmer(psychosis ~ lparent_act_stress + age + gender + lnegaff + (1|id), data = dat_mice)
+model_mediator <- lmer(lnegaff ~ lparent_act_stress + age + gender + (1|id), data = dat2)
+model_outcome  <- lmer(psychosis ~ lparent_act_stress + age + gender + lnegaff + (1|id), data = dat2)
 
 mediation_result <- mediate(
   model_mediator, 
@@ -361,8 +382,9 @@ summary(mediation_result)
 plot(mediation_result)
 
 ###parenting social stress
-model_mediator <- lmer(lnegaff ~ lparent_soc_stress + age + gender + (1|id), data = dat_mice)
-model_outcome  <- lmer(psychosis ~ lparent_soc_stress + age + gender + lnegaff + (1|id), data = dat_mice)
+dat2<-dat%>%filter(!is.na(lparent_soc_stress)&!is.na(psychosis)&!is.na(lnegaff))
+model_mediator <- lmer(lnegaff ~ lparent_soc_stress + age + gender + (1|id), data = dat2)
+model_outcome  <- lmer(psychosis ~ lparent_soc_stress + age + gender + lnegaff + (1|id), data = dat2)
 
 mediation_result <- mediate(
   model_mediator, 
@@ -885,7 +907,7 @@ summary(res1)
 
 ##parenting event stress missing data
 detach("package:lmerTest", unload=TRUE)
-dat2<-dat_mice%>%filter(!is.na(parent_eve_stress))
+dat2<-dat%>%filter(!is.na(parent_eve_stress)&!is.na(lpsychosis)&!is.na(lnegaff))
 model_mediator <- lmer(lnegaff ~ lpsychosis + age + gender + (1|id), data = dat2)
 model_outcome  <- lmer(parent_eve_stress ~ lpsychosis + age + gender + lnegaff + (1|id), data = dat2)
 
@@ -902,7 +924,7 @@ plot(mediation_result)
 #no mediation
 
 ###parenting activity stress missing data
-dat2<-dat_mice%>%filter(!is.na(parent_act_stress))
+dat2<-dat%>%filter(!is.na(parent_act_stress)&!is.na(lpsychosis)&!is.na(lnegaff))
 model_mediator <- lmer(lnegaff ~ lpsychosis + age + gender + (1|id), data = dat2)
 model_outcome  <- lmer(parent_act_stress ~ lpsychosis + age + gender + lnegaff + (1|id), data = dat2)
 
@@ -920,7 +942,7 @@ plot(mediation_result)
 #mediation
 
 ###parenting social stress
-dat2<-dat_mice%>%filter(!is.na(parent_soc_stress))
+dat2<-dat%>%filter(!is.na(parent_soc_stress)&!is.na(lpsychosis)&!is.na(lnegaff))
 model_mediator <- lmer(lnegaff ~ lpsychosis + age + gender + (1|id), data = dat2)
 model_outcome  <- lmer(parent_soc_stress ~ lpsychosis + age + gender + lnegaff + (1|id), data = dat2)
 
@@ -1177,11 +1199,11 @@ res1<-lmer(parent_soc_stress ~ obs + lpsychosis + (1|id), data = dat, REML = F)
 summary(res1)
 confint(res1)
 
-res2<-lmer(parent_soc_stress ~ obs + lpsychosis + lnegaff + (1|id), data = dat, REML = F)
+res2<-lmer(parent_soc_stress ~ obs + lpsychosis  + (1|id), data = dat, REML = F)
 
-res3<-lmer(parent_soc_stress ~ obs + lpsychosis + lnegaff + mpsychosis + (1|id), data = dat, REML = F)
+res3<-lmer(parent_soc_stress ~ obs + lpsychosis  + mpsychosis + (1|id), data = dat, REML = F)
 
-res4<-lmer(parent_soc_stress ~ obs + lpsychosis  + lnegaff + mpsychosis + mnegaff + (1|id), data = dat, REML = F)
+res4<-lmer(parent_soc_stress ~ obs + lpsychosis   + mpsychosis  + (1|id), data = dat, REML = F)
 
 lrtest(res1, res2)
 lrtest(res2, res3)
@@ -1190,7 +1212,7 @@ lrtest(res3, res4)
 
 #Hypothesis 4 - add age and gender level 2 variables
 
-res5<-lmer(parent_soc_stress ~ obs + lpsychosis + lnegaff + mpsychosis + mnegaff + age + gender + (1|id), data = dat, REML = F)
+res5<-lmer(parent_soc_stress ~ obs + lpsychosis  + mpsychosis  + age + gender + (1|id), data = dat, REML = F)
 summary(res5)
 confint(res5)
 
@@ -1198,12 +1220,12 @@ lrtest(res4, res5) #age and gender sig improve model
 
 tab_model(res5, show.se = T, df.method = "satterthwaite",file = "Hyp4_social.doc")
 
-res6<-lmer(parent_soc_stress ~ obs + lpsychosis + lnegaff + mpsychosis + mnegaff + age + gender + soc_support + child_behav + coping + (1|id), data = dat, REML = F)
+res6<-lmer(parent_soc_stress ~ obs + lpsychosis  + mpsychosis  + age + gender + soc_support + child_behav + coping + (1|id), data = dat, REML = F)
 
 lrtest(res5, res6) #measured variables do not improve model
 
 #####Hypothesis 2 - improvement of adding time-invariant variables to the model
-res7<-lmer(parent_soc_stress ~ obs + lpsychosis + lnegaff + mpsychosis + mnegaff + age + gender + soc_support + child_behav + coping + parent_selfeffic + (1|id), data = dat, REML = F)
+res7<-lmer(parent_soc_stress ~ obs + lpsychosis  + mpsychosis  + age + gender + soc_support + child_behav + coping + parent_selfeffic + (1|id), data = dat, REML = F)
 summary(res7)
 confint(res7)
 
@@ -1216,13 +1238,13 @@ tab_model(res7, show.se = T, df.method = "satterthwaite",file = "Hyp4_social_cov
 
 ####moderation
 #social support
-res9<-lmer(parent_soc_stress ~ obs + lpsychosis*soc_support + lnegaff + mpsychosis + mnegaff + age + gender +  child_behav + coping + parent_selfeffic + (1|id), data = dat, REML = F)
+res9<-lmer(parent_soc_stress ~ obs + lpsychosis*soc_support  + mpsychosis  + age + gender +  child_behav + coping + parent_selfeffic + (1|id), data = dat, REML = F)
 summary(res9)
 
 lrtest(res7, res9) #social support moderation is non-sig
 
 #child behaviour
-res10<-lmer(parent_soc_stress ~ obs + lpsychosis*child_behav + lnegaff + mpsychosis + mnegaff + age + gender + soc_support + coping + parent_selfeffic + (1|id), data = dat, REML = F)
+res10<-lmer(parent_soc_stress ~ obs + lpsychosis*child_behav  + mpsychosis  + age + gender + soc_support + coping + parent_selfeffic + (1|id), data = dat, REML = F)
 summary(res10)
 confint(res10)
 
@@ -1230,13 +1252,13 @@ lrtest(res7, res10) #child behaviour is sig
 tab_model(res10, show.se = T, df.method = "satterthwaite",file = "Hyp4_socialmod_childbehav.doc")
 
 #coping
-res11<-lmer(parent_soc_stress ~ obs + lpsychosis*coping + lnegaff + mpsychosis + mnegaff + age + gender + soc_support + child_behav + parent_selfeffic + (1|id), data = dat, REML = F)
+res11<-lmer(parent_soc_stress ~ obs + lpsychosis*coping  + mpsychosis  + age + gender + soc_support + child_behav + parent_selfeffic + (1|id), data = dat, REML = F)
 summary(res11)
 
 lrtest(res5, res11) #coping moderation is highly non-sig
 
 #parenting self-efficacy
-res12<-lmer(parent_soc_stress ~ obs + lpsychosis + coping + lnegaff + mpsychosis + mnegaff + age + gender + soc_support + child_behav + lpsychosis*parent_selfeffic + (1|id), data = dat, REML = F)
+res12<-lmer(parent_soc_stress ~ obs + lpsychosis + coping  + mpsychosis  + age + gender + soc_support + child_behav + lpsychosis*parent_selfeffic + (1|id), data = dat, REML = F)
 summary(res12)
 
 lrtest(res5, res12) #parenting self-efficacy is sig
@@ -1244,7 +1266,7 @@ lrtest(res5, res12) #parenting self-efficacy is sig
 tab_model(res12, show.se = T, df.method = "satterthwaite",file = "Hyp4_socialmod_selfeffic.doc")
 
 #gender
-res13<-lmer(parent_soc_stress ~ obs + lpsychosis*gender + coping + lnegaff + mpsychosis + mnegaff + age + gender + soc_support + child_behav + parent_selfeffic + (1|id), data = dat, REML = F)
+res13<-lmer(parent_soc_stress ~ obs + lpsychosis*gender + coping  + mpsychosis  + age + gender + soc_support + child_behav + parent_selfeffic + (1|id), data = dat, REML = F)
 summary(res13)
 confint(res13)
 
@@ -1253,7 +1275,7 @@ lrtest(res7, res13) #gender moderation is sig
 tab_model(res13, show.se = T, df.method = "satterthwaite",file = "Hyp4_socialmod_gender.doc")
 
 #all moderators
-res14<-lmer(parent_soc_stress ~ obs + lpsychosis*gender + lnegaff + mnegaff + lpsychosis*parent_selfeffic + lpsychosis*coping + lpsychosis*child_behav  + lpsychosis*soc_support +  + mpsychosis +  + age + parent_selfeffic + (1|id), data = dat, REML = F)
+res14<-lmer(parent_soc_stress ~ obs + lpsychosis*gender   + lpsychosis*parent_selfeffic + lpsychosis*coping + lpsychosis*child_behav  + lpsychosis*soc_support +  + mpsychosis +  + age + parent_selfeffic + (1|id), data = dat, REML = F)
 summary(res14)
 lrtest(res7, res14)
 
@@ -1448,33 +1470,33 @@ ft<-flextable(res13m)%>% colformat_double(digits = 3)
 save_as_docx(ft, path = "mHyp4_act_gendermod.docx")
 
 ##############################Hypothesis 4 social stress#####################################
-res5<-lmer(parent_soc_stress ~ obs + lpsychosis + lnegaff + mpsychosis + mnegaff + age + gender + (1|id), data = dat, REML = F)
-res7<-lmer(parent_soc_stress ~ obs + lpsychosis + lnegaff + mpsychosis + mnegaff + age + gender + soc_support + child_behav + coping + parent_selfeffic + (1|id), data = dat, REML = F)
-res10<-lmer(parent_soc_stress ~ obs + lpsychosis*child_behav + lnegaff + mpsychosis + mnegaff + age + gender + soc_support + coping + parent_selfeffic + (1|id), data = dat, REML = F)
-res12<-lmer(parent_soc_stress ~ obs + lpsychosis + coping + lnegaff + mpsychosis + mnegaff + age + gender + soc_support + child_behav + lpsychosis*parent_selfeffic + (1|id), data = dat, REML = F)
-res13<-lmer(parent_soc_stress ~ obs + lpsychosis*gender + coping + lnegaff + mpsychosis + mnegaff + age + gender + soc_support + child_behav + parent_selfeffic + (1|id), data = dat, REML = F)
+res5<-lmer(parent_soc_stress ~ obs + lpsychosis  + mpsychosis  + age + gender + (1|id), data = dat, REML = F)
+res7<-lmer(parent_soc_stress ~ obs + lpsychosis  + mpsychosis  + age + gender + soc_support + child_behav + coping + parent_selfeffic + (1|id), data = dat, REML = F)
+res10<-lmer(parent_soc_stress ~ obs + lpsychosis*child_behav  + mpsychosis  + age + gender + soc_support + coping + parent_selfeffic + (1|id), data = dat, REML = F)
+res12<-lmer(parent_soc_stress ~ obs + lpsychosis + coping  + mpsychosis  + age + gender + soc_support + child_behav + lpsychosis*parent_selfeffic + (1|id), data = dat, REML = F)
+res13<-lmer(parent_soc_stress ~ obs + lpsychosis*gender + coping  + mpsychosis  + age + gender + soc_support + child_behav + parent_selfeffic + (1|id), data = dat, REML = F)
 
-models <- with(imp, lmer(soc_stress ~ obs + lpsychosis + lnegaff + mpsychosis + mnegaff + age + gender + (1|id), REML = F, control = lmerControl(optimizer = "Nelder_Mead")))
+models <- with(imp, lmer(soc_stress ~ obs + lpsychosis  + mpsychosis  + age + gender + (1|id), REML = F, control = lmerControl(optimizer = "Nelder_Mead")))
 res5m<-summary(pool(models), conf.int = TRUE)
 ft<-flextable(res5m)%>% colformat_double(digits = 3)
 save_as_docx(ft, path = "mHyp4_soc.docx")
 
-models <- with(imp, lmer(soc_stress ~ obs + lpsychosis + lnegaff + mpsychosis + mnegaff + age + gender + soc_support + child_behav + coping + parent_selfeffic + (1|id), REML = F, control = lmerControl(optimizer = "Nelder_Mead")))
+models <- with(imp, lmer(soc_stress ~ obs + lpsychosis  + mpsychosis  + age + gender + soc_support + child_behav + coping + parent_selfeffic + (1|id), REML = F, control = lmerControl(optimizer = "Nelder_Mead")))
 res7m<-summary(pool(models), conf.int = TRUE)
 ft<-flextable(res7m)%>% colformat_double(digits = 3)
 save_as_docx(ft, path = "mHyp4_soc_covariates.docx")
 
-models <- with(imp, lmer(soc_stress ~ obs + lpsychosis*child_behav + lnegaff + mpsychosis + mnegaff + age + gender + soc_support + coping + parent_selfeffic + (1|id), REML = F, control = lmerControl(optimizer = "Nelder_Mead")))
+models <- with(imp, lmer(soc_stress ~ obs + lpsychosis*child_behav  + mpsychosis  + age + gender + soc_support + coping + parent_selfeffic + (1|id), REML = F, control = lmerControl(optimizer = "Nelder_Mead")))
 res10m<-summary(pool(models), conf.int = TRUE)
 ft<-flextable(res10m)%>% colformat_double(digits = 3)
 save_as_docx(ft, path = "mHyp4_soc_childbehavmod.docx")
 
-models <- with(imp, lmer(soc_stress ~ obs + lpsychosis + coping + lnegaff + mpsychosis + mnegaff + age + gender + soc_support + child_behav + lpsychosis*parent_selfeffic + (1|id), REML = F, control = lmerControl(optimizer = "Nelder_Mead")))
+models <- with(imp, lmer(soc_stress ~ obs + lpsychosis + coping  + mpsychosis  + age + gender + soc_support + child_behav + lpsychosis*parent_selfeffic + (1|id), REML = F, control = lmerControl(optimizer = "Nelder_Mead")))
 res12m<-summary(pool(models), conf.int = TRUE)
 ft<-flextable(res12m)%>% colformat_double(digits = 3)
 save_as_docx(ft, path = "mHyp4_soc_parentselfefficmod.docx")
 
-models <- with(imp, lmer(soc_stress ~ obs + lpsychosis*gender + coping + lnegaff + mpsychosis + mnegaff + age + gender + soc_support + child_behav + parent_selfeffic + (1|id), REML = F, control = lmerControl(optimizer = "Nelder_Mead")))
+models <- with(imp, lmer(soc_stress ~ obs + lpsychosis*gender + coping  + mpsychosis  + age + gender + soc_support + child_behav + parent_selfeffic + (1|id), REML = F, control = lmerControl(optimizer = "Nelder_Mead")))
 res13m<-summary(pool(models), conf.int = TRUE)
 ft<-flextable(res13m)%>% colformat_double(digits = 3)
 save_as_docx(ft, path = "mHyp4_soc_gendermod.docx")
@@ -1502,7 +1524,7 @@ res5e<-lmer(parent_act_stress ~ obs + psychosis + lpsychosis + lparent_act_stres
 summary(res5e)
 tab_model(res5e, show.se = T, df.method = "satterthwaite",file = "sensanalysis_act_stress.doc")
 
-res5f<-lmer(parent_soc_stress ~ obs + psychosis + lpsychosis + lparent_soc_stress + lnegaff + mpsychosis + mnegaff + age + gender + (1|id), data = dat, REML = F)
+res5f<-lmer(parent_soc_stress ~ obs + psychosis + lpsychosis + lparent_soc_stress + mpsychosis + age + gender + (1|id), data = dat, REML = F)
 summary(res5f)
 tab_model(res5f, show.se = T, df.method = "satterthwaite",file = "sensanalysis_soc_stress.doc")
 
