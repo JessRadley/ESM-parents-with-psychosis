@@ -1,5 +1,5 @@
 # ESM-parents-with-psychosis
-R code used to analyse ESM (experience sampling methodology) data from a study measuring stress and psychosis in parents
+R code used to analyse ESM (experience sampling methodology) data from a study measuring stress and psychosis in parents. The data files can be found and downloaded here https://osf.io/wj3cv/.
 
 ## Power analysis
 We computed a power analysis using the data from the van der Steen et al. (2017) to determine how many participants would be needed in this study. We used the R package described in Green & MacLeod (2016) - SIMR: An R Package for power analysis of generalized linear mixed models by simulation. We looked at three models with psychosis as the outcome for the three different types of stress - event stress, activity stress and social stress - and included negative affect in the model since we hypothesised it would be important as a mediator of the relationship between stress and psychosis. The largest sample size returned from the three power analyses was 32 participants.
